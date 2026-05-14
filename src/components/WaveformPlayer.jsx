@@ -1,0 +1,111 @@
+import { useEffect, useRef, useState } from 'react'
+import WaveSurfer from 'wavesurfer.js'
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
+
+export default function WaveformPlayer({ blob, height = 64, beatMarkers = null }) {
+  const containerRef = useRef(null)
+  const wsRef = useRef(null)
+  const urlRef = useRef(null)
+  const [playing, setPlaying] = useState(false)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!blob || !containerRef.current) return
+
+    urlRef.current = URL.createObjectURL(blob)
+
+    const plugins = []
+    let regions = null
+    if (beatMarkers) {
+      regions = RegionsPlugin.create()
+      plugins.push(regions)
+    }
+
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      waveColor: '#4f46e5',
+      progressColor: '#818cf8',
+      cursorColor: '#c7d2fe',
+      height,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 2,
+      normalize: true,
+      plugins,
+    })
+
+    ws.load(urlRef.current)
+
+    ws.on('ready', (duration) => {
+      setReady(true)
+      if (beatMarkers && regions) {
+        drawBeatMarkers(regions, beatMarkers, duration)
+      }
+    })
+
+    ws.on('finish', () => setPlaying(false))
+    wsRef.current = ws
+
+    return () => {
+      ws.destroy()
+      URL.revokeObjectURL(urlRef.current)
+      setPlaying(false)
+      setReady(false)
+    }
+  }, [blob, height, beatMarkers])
+
+  function togglePlay() {
+    if (!wsRef.current || !ready) return
+    wsRef.current.playPause()
+    setPlaying((p) => !p)
+  }
+
+  return (
+    <div className="flex items-center gap-3 w-full">
+      <button
+        onClick={togglePlay}
+        disabled={!ready}
+        className="flex-shrink-0 w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 flex items-center justify-center transition-colors"
+        aria-label={playing ? 'Pause' : 'Play'}
+      >
+        {playing ? <PauseIcon /> : <PlayIcon />}
+      </button>
+      <div ref={containerRef} className="flex-1 min-w-0" />
+    </div>
+  )
+}
+
+function drawBeatMarkers(regions, { bpm, timeSignature }, duration) {
+  const spb = 60 / bpm
+  const beats = timeSignature?.beats ?? 4
+  let t = 0
+  let i = 0
+  while (t <= duration + spb) {
+    const isDownbeat = i % beats === 0
+    regions.addRegion({
+      start: t,
+      end: t,
+      color: isDownbeat ? 'rgba(99, 102, 241, 0.85)' : 'rgba(156, 163, 175, 0.4)',
+      drag: false,
+      resize: false,
+    })
+    t += spb
+    i++
+  }
+}
+
+function PlayIcon() {
+  return (
+    <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+    </svg>
+  )
+}
