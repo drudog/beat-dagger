@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { SOUNDS, DEFAULT_SUBS, makeDefaultRow } from '../hooks/useMetronome'
 
 // Per-sound color palettes (inline style values to avoid Tailwind purge on dynamic keys)
@@ -169,8 +169,23 @@ export default function MetronomePanel({
   isRunning, currentBeat,
   onToggle, onTapTempo,
   TIME_SIGNATURES,
+  presets = [], onSavePreset, onLoadPreset, onDeletePreset,
 }) {
   const [open, setOpen] = useState(false)
+  const [savingPreset, setSavingPreset] = useState(false)
+  const [presetName, setPresetName] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const presetInputRef = useRef(null)
+
+  useEffect(() => {
+    if (savingPreset) presetInputRef.current?.focus()
+  }, [savingPreset])
+
+  function commitSave() {
+    onSavePreset?.(presetName)
+    setPresetName('')
+    setSavingPreset(false)
+  }
 
   function handleBpmInput(e) {
     const v = parseInt(e.target.value, 10)
@@ -320,6 +335,98 @@ export default function MetronomePanel({
           <p className="text-[10px] text-gray-700 -mt-1">
             Click block to cycle level · Hover block for ÷ to subdivide · Click sound pill to change
           </p>
+
+          {/* ── Presets ── */}
+          <div className="border-t border-gray-800 pt-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Presets</span>
+              {!savingPreset && (
+                <button
+                  onClick={() => setSavingPreset(true)}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  + Save current
+                </button>
+              )}
+            </div>
+
+            {savingPreset && (
+              <div className="flex gap-2">
+                <input
+                  ref={presetInputRef}
+                  type="text"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitSave()
+                    if (e.key === 'Escape') { setSavingPreset(false); setPresetName('') }
+                  }}
+                  placeholder="Preset name…"
+                  className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                <button
+                  onClick={commitSave}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs text-white rounded-lg font-medium transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setSavingPreset(false); setPresetName('') }}
+                  className="px-2 text-gray-600 hover:text-gray-400 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {presets.length === 0 && !savingPreset && (
+              <p className="text-xs text-gray-700">No presets saved yet.</p>
+            )}
+
+            {presets.map((p) => (
+              <div key={p.id} className="flex items-center gap-1.5 group">
+                {confirmDeleteId === p.id ? (
+                  <>
+                    <span className="flex-1 truncate text-xs text-gray-500 px-1">Delete "{p.name}"?</span>
+                    <button
+                      onClick={() => { onDeletePreset?.(p.id); setConfirmDeleteId(null) }}
+                      className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-xs text-white rounded-lg font-medium transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-xs text-gray-400 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => onLoadPreset?.(p)}
+                      className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left min-w-0"
+                    >
+                      <span className="text-xs text-gray-300 flex-1 truncate">{p.name}</span>
+                      <span className="text-xs text-gray-600 flex-shrink-0 font-mono">{p.bpm}</span>
+                      <span className="text-xs text-gray-700 flex-shrink-0">{p.timeSignature?.label}</span>
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(p.id)}
+                      className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-gray-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete preset"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
 
           <div className="border-t border-gray-800 pt-3 flex flex-col gap-3">
             {/* Count-in */}

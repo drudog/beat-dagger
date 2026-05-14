@@ -21,6 +21,7 @@ function formatDate(ts) {
 export default function RecordingList({ refreshKey }) {
   const [recordings, setRecordings] = useState([])
   const [expanded, setExpanded] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   useEffect(() => {
     getAllRecordings().then((recs) =>
@@ -32,6 +33,7 @@ export default function RecordingList({ refreshKey }) {
     await deleteRecording(id)
     setRecordings((prev) => prev.filter((r) => r.id !== id))
     if (expanded === id) setExpanded(null)
+    setConfirmDeleteId(null)
   }
 
   if (recordings.length === 0) {
@@ -60,13 +62,30 @@ export default function RecordingList({ refreshKey }) {
               </p>
             </button>
 
-            <button
-              onClick={() => handleDelete(rec.id)}
-              className="flex-shrink-0 w-8 h-8 rounded-lg hover:bg-gray-800 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors"
-              aria-label="Delete recording"
-            >
-              <TrashIcon />
-            </button>
+            {confirmDeleteId === rec.id ? (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={() => handleDelete(rec.id)}
+                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-xs text-white rounded-lg font-medium transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-xs text-gray-400 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDeleteId(rec.id)}
+                className="flex-shrink-0 w-8 h-8 rounded-lg hover:bg-gray-800 flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors"
+                aria-label="Delete recording"
+              >
+                <TrashIcon />
+              </button>
+            )}
           </div>
 
           {expanded === rec.id && (

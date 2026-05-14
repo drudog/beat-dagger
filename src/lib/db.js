@@ -4,14 +4,18 @@ const DB_NAME = 'music-recorder'
 const STORE = 'recordings'
 let dbPromise
 
+const PRESETS_STORE = 'metronome-presets'
+
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, 2, {
+    dbPromise = openDB(DB_NAME, 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true })
         }
-        // v2: schemaless store — bpm/timeSignature/beatPattern added at write time
+        if (oldVersion < 3) {
+          db.createObjectStore(PRESETS_STORE, { keyPath: 'id', autoIncrement: true })
+        }
       },
     })
   }
@@ -59,4 +63,19 @@ export async function getAllRecordings() {
 export async function deleteRecording(id) {
   const db = await getDb()
   return db.delete(STORE, id)
+}
+
+export async function saveMetronomePreset(preset) {
+  const db = await getDb()
+  return db.add(PRESETS_STORE, { ...preset, createdAt: Date.now() })
+}
+
+export async function getMetronomePresets() {
+  const db = await getDb()
+  return db.getAll(PRESETS_STORE)
+}
+
+export async function deleteMetronomePreset(id) {
+  const db = await getDb()
+  return db.delete(PRESETS_STORE, id)
 }

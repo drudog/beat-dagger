@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRecorder } from '../hooks/useRecorder'
 import { useMetronome } from '../hooks/useMetronome'
-import { saveRecording } from '../lib/db'
+import { saveRecording, saveMetronomePreset, getMetronomePresets, deleteMetronomePreset } from '../lib/db'
 import WaveformPlayer from './WaveformPlayer'
 import MetronomePanel from './MetronomePanel'
 
@@ -25,6 +25,43 @@ export default function Recorder({ onSaved }) {
   const [error, setError] = useState(null)
   const [countingIn, setCountingIn] = useState(false)
   const [countInBeat, setCountInBeat] = useState(0)
+  const [presets, setPresets] = useState([])
+
+  useEffect(() => {
+    getMetronomePresets().then(setPresets).catch(() => {})
+  }, [])
+
+  const handleSavePreset = useCallback(async (presetName) => {
+    const preset = {
+      name: presetName.trim() || `Preset — ${new Date().toLocaleString()}`,
+      bpm: metronome.bpm,
+      timeSignature: metronome.timeSignature,
+      rows: metronome.rows.map(({ sound, steps }) => ({ sound, steps })),
+      volume: metronome.volume,
+      countInBars: metronome.countInBars,
+      autoStart: metronome.autoStart,
+    }
+    await saveMetronomePreset(preset)
+    const updated = await getMetronomePresets()
+    setPresets(updated)
+  }, [metronome])
+
+  const handleLoadPreset = useCallback((preset) => {
+    metronome.setBpm(preset.bpm)
+    metronome.setTimeSignature(preset.timeSignature)
+    metronome.setRows(preset.rows.map((r) => ({
+      ...r,
+      id: Math.random().toString(36).slice(2),
+    })))
+    metronome.setVolume(preset.volume)
+    metronome.setCountInBars(preset.countInBars)
+    metronome.setAutoStart(preset.autoStart)
+  }, [metronome])
+
+  const handleDeletePreset = useCallback(async (id) => {
+    await deleteMetronomePreset(id)
+    setPresets((prev) => prev.filter((p) => p.id !== id))
+  }, [])
 
   async function handleStart() {
     setError(null)
@@ -97,6 +134,10 @@ export default function Recorder({ onSaved }) {
           onToggle={metronome.toggle}
           onTapTempo={metronome.tapTempo}
           TIME_SIGNATURES={metronome.TIME_SIGNATURES}
+          presets={presets}
+          onSavePreset={handleSavePreset}
+          onLoadPreset={handleLoadPreset}
+          onDeletePreset={handleDeletePreset}
         />
       </div>
 
