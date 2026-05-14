@@ -18,11 +18,24 @@ function getDb() {
   return dbPromise
 }
 
+// Safari cannot store Blob objects in IndexedDB — convert to ArrayBuffer first.
+function blobToArrayBuffer(blob) {
+  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('FileReader failed'))
+    reader.readAsArrayBuffer(blob)
+  })
+}
+
 export async function saveRecording(blob, name, duration, beatMeta = null) {
   const db = await getDb()
+  const buffer = await blobToArrayBuffer(blob)
   return db.add(STORE, {
     name,
-    blob,
+    buffer,
+    mimeType: blob.type || 'audio/mp4',
     duration,
     createdAt: Date.now(),
     bpm: beatMeta?.bpm ?? null,
@@ -33,7 +46,14 @@ export async function saveRecording(blob, name, duration, beatMeta = null) {
 
 export async function getAllRecordings() {
   const db = await getDb()
-  return db.getAll(STORE)
+  const rows = await db.getAll(STORE)
+  // Reconstruct Blob from ArrayBuffer (new format), or keep legacy blob field.
+  return rows.map((r) => ({
+    ...r,
+    blob: r.buffer
+      ? new Blob([r.buffer], { type: r.mimeType || 'audio/mp4' })
+      : r.blob,
+  }))
 }
 
 export async function deleteRecording(id) {

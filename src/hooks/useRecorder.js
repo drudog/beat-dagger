@@ -2,6 +2,11 @@ import { useRef, useState, useCallback } from 'react'
 
 const BAR_COUNT = 24
 
+function getSupportedMimeType() {
+  const types = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg']
+  return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
+}
+
 export function useRecorder() {
   const [recState, setRecState] = useState('idle') // idle | recording | recorded
   const [audioBlob, setAudioBlob] = useState(null)
@@ -58,7 +63,8 @@ export function useRecorder() {
     const stream = preAcquiredStream ?? await navigator.mediaDevices.getUserMedia({ audio: true })
     streamRef.current = stream
 
-    const mr = new MediaRecorder(stream)
+    const mimeType = getSupportedMimeType()
+    const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
     mrRef.current = mr
     chunksRef.current = []
 
@@ -67,7 +73,7 @@ export function useRecorder() {
     }
 
     mr.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+      const blob = new Blob(chunksRef.current, { type: mr.mimeType || mimeType })
       setAudioBlob(blob)
       setRecState('recorded')
     }

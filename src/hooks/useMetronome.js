@@ -142,17 +142,32 @@ export function useMetronome() {
     if (masterGainRef.current) masterGainRef.current.gain.value = volume
   }, [volume])
 
+  // Synchronous — must stay sync so new AudioContext() and resume() are called
+  // directly within the user gesture call stack (Safari requirement).
   function getAudioCtx() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
     if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
-      const ctx = new AudioContext()
+      const ctx = new AudioCtx()
       audioCtxRef.current = ctx
       const g = ctx.createGain()
       g.gain.value = volumeRef.current
       g.connect(ctx.destination)
       masterGainRef.current = g
     }
-    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume()
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume()
+    }
     return audioCtxRef.current
+  }
+
+  // Async — waits for the context to actually be running.
+  // Used by scheduleLoop (runs from setTimeout, outside user gesture).
+  async function waitForRunning() {
+    const ctx = getAudioCtx()
+    if (ctx.state === 'suspended') {
+      await ctx.resume().catch(() => {})
+    }
+    return ctx
   }
 
   function scheduleBeat(beatIndex, time) {
@@ -172,8 +187,15 @@ export function useMetronome() {
     }
   }
 
-  function scheduleLoop() {
-    const ctx = getAudioCtx()
+  async function scheduleLoop() {
+    const ctx = await waitForRunning()
+    if (ctx.state !== 'running') {
+      schedulerRef.current = setTimeout(scheduleLoop, LOOKAHEAD_MS)
+      return
+    }
+    if (nextBeatTimeRef.current < ctx.currentTime) {
+      nextBeatTimeRef.current = ctx.currentTime + 0.05
+    }
     while (nextBeatTimeRef.current < ctx.currentTime + SCHEDULE_AHEAD) {
       const beat = currentBeatRef.current % beatsRef.current
       scheduleBeat(beat, nextBeatTimeRef.current)
@@ -318,6 +340,29 @@ export function useMetronome() {
   }, [])
 
   const setVolume = useCallback((v) => { volumeRef.current = v; setVolumeState(v) }, [])
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {})
+      }
+    }
+    // Resume on any user interaction — covers Safari's strict gesture requirement
+    // when returning from idle (visibilitychange alone isn't always enough).
+    function handleInteraction() {
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('click', handleInteraction)
+    document.addEventListener('keydown', handleInteraction)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('click', handleInteraction)
+      document.removeEventListener('keydown', handleInteraction)
+    }
+  }, [])
 
   useEffect(() => () => { stopScheduler(); audioCtxRef.current?.close() }, [])
 

@@ -5,50 +5,87 @@ import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 export default function WaveformPlayer({ blob, height = 64, beatMarkers = null }) {
   const containerRef = useRef(null)
   const wsRef = useRef(null)
-  const urlRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     if (!blob || !containerRef.current) return
 
-    urlRef.current = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    let destroyed = false
 
-    const plugins = []
-    let regions = null
-    if (beatMarkers) {
-      regions = RegionsPlugin.create()
-      plugins.push(regions)
+    const init = async () => {
+      // Always pre-decode so we can pass channelData to ws.load(), which routes through
+      // Decoder.createBuffer() instead of Decoder.decode(). Decoder.decode() creates a
+      // regular AudioContext that Safari starts suspended, causing decodeAudioData to hang
+      // indefinitely — 'ready' never fires, waveform stays blank, play button stays disabled.
+      // If pre-decode fails for any reason, [[0,0]] is a flat placeholder that still lets
+      // WaveSurfer skip Decoder.decode() and fire 'ready' once loadedmetadata resolves.
+      let channelData
+      let decodedDuration
+      try {
+        const OffCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext
+        const offlineCtx = new OffCtx(1, 1, 44100)
+        // FileReader works on all Safari versions; Blob.arrayBuffer() needs Safari 14.1+
+        const arrayBuffer = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = () => reject(new Error('FileReader failed'))
+          reader.readAsArrayBuffer(blob)
+        })
+        // Callback form of decodeAudioData works on all Safari versions
+        const audioBuffer = await new Promise((resolve, reject) =>
+          offlineCtx.decodeAudioData(arrayBuffer, resolve, reject)
+        )
+        channelData = [audioBuffer.getChannelData(0)]
+        decodedDuration = audioBuffer.duration
+      } catch {
+        // Flat placeholder — WaveSurfer gets real duration from loadedmetadata,
+        // and Decoder.decode() (the hanging path) is still never reached.
+        channelData = [[0, 0]]
+      }
+
+      if (destroyed) return
+
+      const plugins = []
+      let regions = null
+      if (beatMarkers) {
+        regions = RegionsPlugin.create()
+        plugins.push(regions)
+      }
+
+      const ws = WaveSurfer.create({
+        container: containerRef.current,
+        waveColor: '#4f46e5',
+        progressColor: '#818cf8',
+        cursorColor: '#c7d2fe',
+        height,
+        barWidth: 2,
+        barGap: 1,
+        barRadius: 2,
+        normalize: true,
+        plugins,
+      })
+      wsRef.current = ws
+
+      ws.on('ready', (duration) => {
+        setReady(true)
+        if (beatMarkers && regions) {
+          drawBeatMarkers(regions, beatMarkers, duration)
+        }
+      })
+      ws.on('finish', () => setPlaying(false))
+
+      ws.load(url, channelData, decodedDuration)
     }
 
-    const ws = WaveSurfer.create({
-      container: containerRef.current,
-      waveColor: '#4f46e5',
-      progressColor: '#818cf8',
-      cursorColor: '#c7d2fe',
-      height,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 2,
-      normalize: true,
-      plugins,
-    })
-
-    ws.load(urlRef.current)
-
-    ws.on('ready', (duration) => {
-      setReady(true)
-      if (beatMarkers && regions) {
-        drawBeatMarkers(regions, beatMarkers, duration)
-      }
-    })
-
-    ws.on('finish', () => setPlaying(false))
-    wsRef.current = ws
+    init()
 
     return () => {
-      ws.destroy()
-      URL.revokeObjectURL(urlRef.current)
+      destroyed = true
+      wsRef.current?.destroy()
+      wsRef.current = null
+      URL.revokeObjectURL(url)
       setPlaying(false)
       setReady(false)
     }
