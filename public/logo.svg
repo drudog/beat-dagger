@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+
+  <!-- Full-bleed black background -->
+  <rect width="512" height="512" fill="#000000"/>
+
+  <!--
+    Bold italic "B" — constructed geometrically with chamfered corners.
+    Italic offset pre-baked: x_final = x_upright + (256 − y) × 0.18
+      → top (y=90)  add +30px
+      → mid (y=256) add  0px
+      → bot (y=422) add −30px
+
+    Outer spine runs from (126,422) → (163,108) → chamfer → top edge.
+    Even-odd fill rule punches the two inner counters (bowl holes).
+  -->
+
+  <!-- ── 3-D EXTRUSION (behind the main B) ───────────────────────
+       Simulates a block letter: left face + bottom face in dark pink.   -->
+  <polygon fill="#8C0038" points="163,108  133,138  75,450  126,422"/>
+  <polygon fill="#A0003F" points="126,422  289,422  259,452  96,452"/>
+
+  <!-- ── MAIN B ──────────────────────────────────────────────────── -->
+  <path fill-rule="evenodd" fill="#E8005C" d="
+    M 163,108
+    L 184,90
+    L 345,90
+    L 365,116
+    L 346,220
+    L 317,246
+    L 316,256
+    L 342,276
+    L 330,372
+    L 289,422
+    L 126,422
+    Z
+
+    M 230,116
+    L 330,116
+    L 342,134
+    L 324,220
+    L 307,234
+    L 209,234
+    Z
+
+    M 203,268
+    L 316,268
+    L 325,283
+    L 316,360
+    L 291,396
+    L 180,396
+    Z
+  "/>
+
+  <!-- ── DAGGER SLASH ───────────────────────────────────────────────
+       Thin diagonal cut from lower-left to upper-right.
+       Width ≈ 16 px perpendicular to the slash direction.             -->
+  <polygon fill="#000000" points="
+    68,376
+    440,166
+    449,182
+    77,392
+  "/>
+
+</svg>
