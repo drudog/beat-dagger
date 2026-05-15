@@ -13,11 +13,12 @@ function getDb() {
         if (oldVersion < 1) {
           db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true })
         }
-        if (oldVersion < 3) {
+        if (oldVersion < 3 && !db.objectStoreNames.contains(PRESETS_STORE)) {
           db.createObjectStore(PRESETS_STORE, { keyPath: 'id', autoIncrement: true })
         }
       },
     })
+    dbPromise.catch(() => { dbPromise = null })
   }
   return dbPromise
 }

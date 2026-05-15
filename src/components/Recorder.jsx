@@ -28,7 +28,7 @@ export default function Recorder({ onSaved, inputDeviceId = '', outputDeviceId =
   const [presets, setPresets] = useState([])
 
   useEffect(() => {
-    getMetronomePresets().then(setPresets).catch(() => {})
+    getMetronomePresets().then(setPresets).catch((err) => console.error('Failed to load presets:', err))
   }, [])
 
   useEffect(() => {

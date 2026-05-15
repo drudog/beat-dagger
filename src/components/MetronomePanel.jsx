@@ -181,10 +181,15 @@ export default function MetronomePanel({
     if (savingPreset) presetInputRef.current?.focus()
   }, [savingPreset])
 
-  function commitSave() {
-    onSavePreset?.(presetName)
-    setPresetName('')
-    setSavingPreset(false)
+  async function commitSave() {
+    try {
+      await onSavePreset?.(presetName)
+      setPresetName('')
+      setSavingPreset(false)
+    } catch (err) {
+      console.error('Failed to save preset:', err)
+      alert('Could not save preset. Your browser may be blocking storage.')
+    }
   }
 
   function handleBpmInput(e) {

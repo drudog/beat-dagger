@@ -111,7 +111,27 @@ function fire(ctx, out, time, level, sound) {
 export function useMetronome() {
   const [bpm, setBpmState] = useState(120)
   const [timeSignature, setTimeSigState] = useState(TIME_SIGNATURES[2])
-  const [rows, setRowsState] = useState(() => [makeDefaultRow('click', 4)])
+  const [rows, setRowsState] = useState(() => [
+    makeDefaultRow('click', 4),
+    {
+      id: uid(), sound: 'shaker',
+      steps: [
+        { level: 'accent', subs: ['ghost', 'ghost', 'ghost'] },
+        { level: 'normal', subs: ['ghost', 'ghost', 'ghost'] },
+        { level: 'normal', subs: ['ghost', 'ghost', 'ghost'] },
+        { level: 'normal', subs: ['ghost', 'ghost', 'ghost'] },
+      ],
+    },
+    {
+      id: uid(), sound: 'woodblock',
+      steps: [
+        { level: 'normal', subs: null },
+        { level: 'normal', subs: null },
+        { level: 'accent', subs: null },
+        { level: 'normal', subs: null },
+      ],
+    },
+  ])
   const [volume, setVolumeState] = useState(0.8)
   const [countInBars, setCountInBars] = useState(1)
   const [autoStart, setAutoStart] = useState(false)
