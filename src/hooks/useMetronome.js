@@ -120,6 +120,7 @@ export function useMetronome() {
 
   const audioCtxRef = useRef(null)
   const masterGainRef = useRef(null)
+  const outputSinkIdRef = useRef('')
   const schedulerRef = useRef(null)
   const rafRef = useRef(null)
   const nextBeatTimeRef = useRef(0)
@@ -153,6 +154,9 @@ export function useMetronome() {
       g.gain.value = volumeRef.current
       g.connect(ctx.destination)
       masterGainRef.current = g
+      if (outputSinkIdRef.current && typeof ctx.setSinkId === 'function') {
+        ctx.setSinkId(outputSinkIdRef.current).catch(() => {})
+      }
     }
     if (audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume()
@@ -341,6 +345,14 @@ export function useMetronome() {
 
   const setVolume = useCallback((v) => { volumeRef.current = v; setVolumeState(v) }, [])
 
+  const setOutputDevice = useCallback((sinkId) => {
+    outputSinkIdRef.current = sinkId
+    const ctx = audioCtxRef.current
+    if (ctx && typeof ctx.setSinkId === 'function') {
+      ctx.setSinkId(sinkId || '').catch(() => {})
+    }
+  }, [])
+
   useEffect(() => {
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible' && audioCtxRef.current?.state === 'suspended') {
@@ -371,6 +383,7 @@ export function useMetronome() {
     timeSignature, setTimeSignature,
     rows, setRows, addRow, removeRow, setRowSound, updateStep,
     volume, setVolume,
+    setOutputDevice,
     countInBars, setCountInBars,
     autoStart, setAutoStart,
     isRunning,

@@ -18,7 +18,7 @@ function formatDate(ts) {
   })
 }
 
-export default function RecordingList({ refreshKey }) {
+export default function RecordingList({ refreshKey, outputDeviceId = '' }) {
   const [recordings, setRecordings] = useState([])
   const [expanded, setExpanded] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
@@ -93,6 +93,7 @@ export default function RecordingList({ refreshKey }) {
               <WaveformPlayer
                 blob={rec.blob}
                 height={56}
+                outputDeviceId={outputDeviceId}
                 beatMarkers={
                   rec.bpm
                     ? { bpm: rec.bpm, timeSignature: rec.timeSignature }

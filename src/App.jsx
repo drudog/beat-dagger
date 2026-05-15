@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import Recorder from './components/Recorder'
 import RecordingList from './components/RecordingList'
+import DeviceSelector from './components/DeviceSelector'
+import { useAudioDevices } from './hooks/useAudioDevices'
 
 export default function App() {
   const [refreshKey, setRefreshKey] = useState(0)
+  const devices = useAudioDevices()
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -17,10 +20,25 @@ export default function App() {
         <span className="font-semibold text-sm tracking-wide">Beat Dagger</span>
       </header>
 
+      {/* Device selector */}
+      <DeviceSelector
+        inputDevices={devices.inputDevices}
+        outputDevices={devices.outputDevices}
+        inputDeviceId={devices.inputDeviceId}
+        onInputChange={devices.setInputDeviceId}
+        outputDeviceId={devices.outputDeviceId}
+        onOutputChange={devices.setOutputDeviceId}
+        sinkIdSupported={devices.sinkIdSupported}
+      />
+
       {/* Recorder */}
       <main className="flex-1 flex flex-col items-center px-4 py-2">
         <div className="w-full max-w-lg">
-          <Recorder onSaved={() => setRefreshKey((k) => k + 1)} />
+          <Recorder
+            onSaved={() => setRefreshKey((k) => k + 1)}
+            inputDeviceId={devices.inputDeviceId}
+            outputDeviceId={devices.outputDeviceId}
+          />
         </div>
 
         {/* Divider */}
@@ -28,7 +46,7 @@ export default function App() {
 
         {/* Recordings list */}
         <div className="w-full pb-12">
-          <RecordingList refreshKey={refreshKey} />
+          <RecordingList refreshKey={refreshKey} outputDeviceId={devices.outputDeviceId} />
         </div>
       </main>
     </div>

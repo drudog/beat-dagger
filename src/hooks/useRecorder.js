@@ -53,14 +53,20 @@ export function useRecorder() {
   }, [])
 
   // preAcquireStream: call before count-in so getUserMedia latency doesn't delay beat 1
-  const preAcquireStream = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  const preAcquireStream = useCallback(async (inputDeviceId) => {
+    const constraints = inputDeviceId
+      ? { audio: { deviceId: { exact: inputDeviceId } } }
+      : { audio: true }
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
     streamRef.current = stream
     return stream
   }, [])
 
-  const start = useCallback(async (preAcquiredStream) => {
-    const stream = preAcquiredStream ?? await navigator.mediaDevices.getUserMedia({ audio: true })
+  const start = useCallback(async (preAcquiredStream, inputDeviceId) => {
+    const constraints = inputDeviceId
+      ? { audio: { deviceId: { exact: inputDeviceId } } }
+      : { audio: true }
+    const stream = preAcquiredStream ?? await navigator.mediaDevices.getUserMedia(constraints)
     streamRef.current = stream
 
     const mimeType = getSupportedMimeType()

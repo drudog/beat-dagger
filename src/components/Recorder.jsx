@@ -11,7 +11,7 @@ function formatTime(secs) {
   return `${m}:${s}`
 }
 
-export default function Recorder({ onSaved }) {
+export default function Recorder({ onSaved, inputDeviceId = '', outputDeviceId = '' }) {
   const {
     recState, setRecState,
     audioBlob, duration, levels,
@@ -30,6 +30,10 @@ export default function Recorder({ onSaved }) {
   useEffect(() => {
     getMetronomePresets().then(setPresets).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    metronome.setOutputDevice(outputDeviceId)
+  }, [outputDeviceId])
 
   const handleSavePreset = useCallback(async (presetName) => {
     const preset = {
@@ -68,7 +72,7 @@ export default function Recorder({ onSaved }) {
     try {
       if (metronome.autoStart && metronome.countInBars > 0) {
         // Pre-warm mic before count-in begins so recording starts precisely on beat 1
-        const stream = await preAcquireStream()
+        const stream = await preAcquireStream(inputDeviceId)
         setCountingIn(true)
         setCountInBeat(0)
 
@@ -78,7 +82,7 @@ export default function Recorder({ onSaved }) {
         })
       } else {
         if (metronome.autoStart) metronome.toggle()
-        await start()
+        await start(null, inputDeviceId)
       }
     } catch {
       setError('Microphone access denied. Please allow access and try again.')
@@ -233,6 +237,7 @@ export default function Recorder({ onSaved }) {
             <WaveformPlayer
               blob={audioBlob}
               height={72}
+              outputDeviceId={outputDeviceId}
               beatMarkers={
                 (metronome.isRunning || metronome.autoStart)
                   ? { bpm: metronome.bpm, timeSignature: metronome.timeSignature }

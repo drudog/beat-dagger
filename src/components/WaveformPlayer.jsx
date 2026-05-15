@@ -2,11 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 
-export default function WaveformPlayer({ blob, height = 64, beatMarkers = null }) {
+export default function WaveformPlayer({ blob, height = 64, beatMarkers = null, outputDeviceId = '' }) {
   const containerRef = useRef(null)
   const wsRef = useRef(null)
   const [playing, setPlaying] = useState(false)
   const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!ready || !wsRef.current) return
+    wsRef.current.getMediaElement()?.setSinkId?.(outputDeviceId || '').catch?.(() => {})
+  }, [ready, outputDeviceId])
 
   useEffect(() => {
     if (!blob || !containerRef.current) return
